@@ -4,7 +4,7 @@ import {
   ResponsiveContainer, CartesianGrid
 } from "recharts";
 
-const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+const API_URL = "https://backend-production-1db6.up.railway.app";
 
 const COLORS = {
   cpu: "#00f5ff",
