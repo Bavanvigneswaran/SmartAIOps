@@ -7,7 +7,11 @@ app = FastAPI(title="SmartAIOps API")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "https://frontend-production-cf46.up.railway.app",
+    ],
     allow_methods=["*"],
     allow_headers=["*"],
 )
