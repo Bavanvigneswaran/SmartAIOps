@@ -2,6 +2,8 @@ import History from "./History";
 import { useState, useEffect } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+
 const METRICS = ["cpu", "memory", "latency", "error_rate"];
 
 const COLORS = {
@@ -77,12 +79,12 @@ export default function App() {
   useEffect(() => {
     const fetchMetrics = async () => {
       try {
-        const res = await fetch(`${process.env.REACT_APP_API_URL}/api/metrics/live`);
+        const res = await fetch(`${API_URL}/api/metrics/live`);
         const data = await res.json();
         setLatest(data);
         setConnected(true);
         // Fetch alerts
-        const alertRes = await fetch(`${process.env.REACT_APP_API_URL}/api/alerts/`);
+        const alertRes = await fetch(`${API_URL}/api/alerts/`);
         const alertData = await alertRes.json();
         setAlerts(alertData.alerts);
         setAlertSummary(alertData.summary);
@@ -101,7 +103,7 @@ export default function App() {
   }, []);
 
   const acknowledgeAlert = async (id) => {
-    await fetch(`${process.env.REACT_APP_API_URL}/api/alerts/${id}/acknowledge`, { method: "POST" });
+    await fetch(`${API_URL}/api/alerts/${id}/acknowledge`, { method: "POST" });
     setAlerts(prev => prev.map(a => a.id === id ? { ...a, acknowledged: true } : a));
   };
 

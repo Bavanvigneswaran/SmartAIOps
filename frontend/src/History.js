@@ -4,6 +4,8 @@ import {
   ResponsiveContainer, CartesianGrid
 } from "recharts";
 
+const API_URL = process.env.REACT_APP_API_URL || "http://localhost:8000";
+
 const COLORS = {
   cpu: "#00f5ff",
   memory: "#a78bfa",
@@ -29,8 +31,8 @@ export default function History() {
       setLoading(true);
       try {
         const [mRes, aRes] = await Promise.all([
-          fetch(`${process.env.REACT_APP_API_URL}/api/metrics/history?limit=100`),
-          fetch(`${process.env.REACT_APP_API_URL}/api/alerts/history?limit=50`),
+          fetch(`${API_URL}/api/metrics/history?limit=100`),
+          fetch(`${API_URL}/api/alerts/history?limit=50`),
         ]);
         const mData = await mRes.json();
         const aData = await aRes.json();
