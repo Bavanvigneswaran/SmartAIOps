@@ -29,8 +29,8 @@ export default function History() {
       setLoading(true);
       try {
         const [mRes, aRes] = await Promise.all([
-          fetch("http://localhost:8000/api/metrics/history?limit=100"),
-          fetch("http://localhost:8000/api/alerts/history?limit=50"),
+          fetch(`${process.env.REACT_APP_API_URL}/api/metrics/history?limit=100`),
+          fetch(`${process.env.REACT_APP_API_URL}/api/alerts/history?limit=50`),
         ]);
         const mData = await mRes.json();
         const aData = await aRes.json();
