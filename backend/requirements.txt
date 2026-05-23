@@ -7,4 +7,3 @@ websockets
 python-dotenv
 sqlalchemy
 aiosqlite
-psutil

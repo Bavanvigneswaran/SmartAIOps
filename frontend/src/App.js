@@ -2,6 +2,10 @@ import History from "./History";
 import { useState, useEffect } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
+// Track JS errors globally
+window.__errorCount__ = 0;
+window.onerror = () => { window.__errorCount__++; };
+
 const API_URL = "https://backend-production-1db6.up.railway.app";
 
 const METRICS = ["cpu", "memory", "latency", "error_rate"];
@@ -67,6 +71,46 @@ function MetricCard({ name, value, history, anomalies, forecasts }) {
   );
 }
 
+async function collectSystemMetrics(apiUrl) {
+  // CPU — measure JS thread delay over 100ms
+  const cpuStart = performance.now();
+  await new Promise(r => setTimeout(r, 100));
+  const elapsed = performance.now() - cpuStart;
+  const cpuLoad = Math.min(((elapsed - 100) / 100) * 100, 100);
+  const cores = navigator.hardwareConcurrency || 4;
+  const cpu = Math.max(5, Math.min(95, cpuLoad + (100 / cores)));
+
+  // Memory — use Chrome API or deviceMemory fallback
+  let memory = 50;
+  if (performance.memory) {
+    const used = performance.memory.usedJSHeapSize;
+    const total = performance.memory.jsHeapSizeLimit;
+    memory = Math.round((used / total) * 100);
+  } else if (navigator.deviceMemory) {
+    memory = Math.max(20, Math.min(90, Math.round(100 - (navigator.deviceMemory / 32) * 100)));
+  }
+
+  // Latency — ping the backend and measure round trip
+  let latency = 100;
+  try {
+    const pingStart = performance.now();
+    await fetch(`${apiUrl}/`, { method: "GET", cache: "no-store" });
+    latency = Math.round(performance.now() - pingStart);
+  } catch {
+    latency = 999;
+  }
+
+  // Error rate — count JS errors on the page
+  const error_rate = Math.min((window.__errorCount__ || 0) * 2, 100);
+
+  return {
+    cpu:        Math.round(cpu * 10) / 10,
+    memory:     Math.round(memory * 10) / 10,
+    latency:    latency,
+    error_rate: error_rate,
+  };
+}
+
 export default function App() {
   const [history, setHistory] = useState([]);
   const [latest, setLatest] = useState({ cpu: 0, memory: 0, latency: 0, error_rate: 0 });
@@ -79,7 +123,12 @@ export default function App() {
   useEffect(() => {
     const fetchMetrics = async () => {
       try {
-        const res = await fetch(`${API_URL}/api/metrics/live`);
+        const localMetrics = await collectSystemMetrics(API_URL);
+        const res = await fetch(`${API_URL}/api/metrics/live`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(localMetrics),
+        });
         const data = await res.json();
         setLatest(data);
         setConnected(true);
