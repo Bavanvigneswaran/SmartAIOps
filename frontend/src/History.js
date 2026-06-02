@@ -29,17 +29,24 @@ export default function History() {
   useEffect(() => {
     const fetchHistory = async () => {
       setLoading(true);
-      try {
-        const [mRes, aRes] = await Promise.all([
-          fetch(`${API_URL}/api/metrics/history?limit=100`),
-          fetch(`${API_URL}/api/alerts/history?limit=50`),
-        ]);
-        const mData = await mRes.json();
-        const aData = await aRes.json();
-        setMetrics(mData);
-        setAlerts(aData);
-      } catch (e) {
-        console.error("Failed to fetch history", e);
+      let retries = 0;
+      while (retries < 5) {
+        try {
+          const [mRes, aRes] = await Promise.all([
+            fetch(`${API_URL}/api/metrics/history?limit=100`),
+            fetch(`${API_URL}/api/alerts/history?limit=50`),
+          ]);
+          const mData = await mRes.json();
+          const aData = await aRes.json();
+          setMetrics(mData);
+          setAlerts(aData);
+          break;
+        } catch (e) {
+          retries++;
+          if (retries < 5) {
+            await new Promise(r => setTimeout(r, 5000));
+          }
+        }
       }
       setLoading(false);
     };

@@ -24,6 +24,9 @@ const LABELS = {
   error_rate: "Error Rate %",
 };
 
+const [connected, setConnected] = useState(false);
+const [wakingUp, setWakingUp] = useState(false);
+
 function MetricCard({ name, value, history, anomalies, forecasts }) {
   const isAnomaly = anomalies?.[name] === true;
 
@@ -132,6 +135,7 @@ export default function App() {
         const data = await res.json();
         setLatest(data);
         setConnected(true);
+        setWakingUp(false);
         // Fetch alerts
         const alertRes = await fetch(`${API_URL}/api/alerts/`);
         const alertData = await alertRes.json();
@@ -143,12 +147,25 @@ export default function App() {
         });
       } catch (e) {
         setConnected(false);
+        setWakingUp(true);
+        setTimeout(fetchMetrics, 5000);
       }
     };
 
     fetchMetrics();
-    const interval = setInterval(fetchMetrics, 2000); // poll every 2 seconds
-    return () => clearInterval(interval);
+    const interval = setInterval(fetchMetrics, 2000);
+
+    // Keep Railway backend alive every 4 minutes
+    const keepAlive = setInterval(async () => {
+      try {
+        await fetch(`${API_URL}/`, { method: "GET", cache: "no-store" });
+      } catch {}
+    }, 4 * 60 * 1000);
+
+    return () => {
+      clearInterval(interval);
+      clearInterval(keepAlive);
+    };
   }, []);
 
   const acknowledgeAlert = async (id) => {
@@ -197,7 +214,7 @@ export default function App() {
             boxShadow: connected ? "0 0 8px #34d399" : "0 0 8px #f87171"
           }} />
           <span style={{ color: "#94a3b8", fontSize: 13 }}>
-            {connected ? "Live" : "Disconnected"}
+            {connected ? "Live" : wakingUp ? "Waking up... ⏳" : "Disconnected"}
           </span>
         </div>
       </div>
