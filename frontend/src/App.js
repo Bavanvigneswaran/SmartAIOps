@@ -6,7 +6,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 window.__errorCount__ = 0;
 window.onerror = () => { window.__errorCount__++; };
 
-const API_URL = "const API_URL = "https://smartaiops-backend.onrender.com";
+const API_URL = "https://smartaiops-backend.onrender.com";
 
 const METRICS = ["cpu", "memory", "latency", "error_rate"];
 
