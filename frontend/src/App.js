@@ -24,9 +24,6 @@ const LABELS = {
   error_rate: "Error Rate %",
 };
 
-const [connected, setConnected] = useState(false);
-const [wakingUp, setWakingUp] = useState(false);
-
 function MetricCard({ name, value, history, anomalies, forecasts }) {
   const isAnomaly = anomalies?.[name] === true;
 
@@ -117,11 +114,11 @@ async function collectSystemMetrics(apiUrl) {
 export default function App() {
   const [history, setHistory] = useState([]);
   const [latest, setLatest] = useState({ cpu: 0, memory: 0, latency: 0, error_rate: 0 });
-  const [page, setPage] = useState("dashboard");
   const [connected, setConnected] = useState(false);
-
+  const [wakingUp, setWakingUp] = useState(false);
   const [alerts, setAlerts] = useState([]);
   const [alertSummary, setAlertSummary] = useState({ critical: 0, warning: 0 });
+  const [page, setPage] = useState("dashboard");
 
   useEffect(() => {
     const fetchMetrics = async () => {
