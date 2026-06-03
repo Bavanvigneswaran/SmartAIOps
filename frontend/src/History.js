@@ -4,7 +4,7 @@ import {
   ResponsiveContainer, CartesianGrid
 } from "recharts";
 
-const API_URL = "https://backend-production-1db6.up.railway.app";
+const API_URL = "https://smartaiops-backend.onrender.com";
 
 const COLORS = {
   cpu: "#00f5ff",
