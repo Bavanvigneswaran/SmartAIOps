@@ -6,7 +6,7 @@ import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianG
 window.__errorCount__ = 0;
 window.onerror = () => { window.__errorCount__++; };
 
-const API_URL = "https://smartaiops-backend.onrender.com";
+const API_URL = "const API_URL = "https://smartaiops-backend.onrender.com";
 
 const METRICS = ["cpu", "memory", "latency", "error_rate"];
 
@@ -80,27 +80,36 @@ async function collectSystemMetrics(apiUrl) {
   const cores = navigator.hardwareConcurrency || 4;
   const cpu = Math.max(5, Math.min(95, cpuLoad + (100 / cores)));
 
-  // Memory — use Chrome API or deviceMemory fallback
+  // Memory
   let memory = 50;
   if (performance.memory) {
     const used = performance.memory.usedJSHeapSize;
     const total = performance.memory.jsHeapSizeLimit;
     memory = Math.round((used / total) * 100);
   } else if (navigator.deviceMemory) {
-    memory = Math.max(20, Math.min(90, Math.round(100 - (navigator.deviceMemory / 32) * 100)));
+    memory = Math.max(20, Math.min(90,
+      Math.round(100 - (navigator.deviceMemory / 32) * 100)
+    ));
   }
 
-  // Latency — ping the backend and measure round trip
+  // Latency — completely isolated try/catch, never throws
   let latency = 100;
   try {
     const pingStart = performance.now();
-    await fetch(`${apiUrl}/`, { method: "GET", cache: "no-store" });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+    await fetch(`${apiUrl}/`, {
+      method: "GET",
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
     latency = Math.round(performance.now() - pingStart);
   } catch {
-    latency = 999;
+    latency = 100; // safe fallback, never throws
   }
 
-  // Error rate — count JS errors on the page
+  // Error rate
   const error_rate = Math.min((window.__errorCount__ || 0) * 2, 100);
 
   return {
@@ -121,49 +130,57 @@ export default function App() {
   const [page, setPage] = useState("dashboard");
 
   useEffect(() => {
-    const fetchMetrics = async () => {
-      try {
-        const localMetrics = await collectSystemMetrics(API_URL);
-        const res = await fetch(`${API_URL}/api/metrics/live`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(localMetrics),
-        });
-        const data = await res.json();
-        setLatest(data);
-        setConnected(true);
-        setWakingUp(false);
-        // Fetch alerts
-        const alertRes = await fetch(`${API_URL}/api/alerts/`);
-        const alertData = await alertRes.json();
-        setAlerts(alertData.alerts);
-        setAlertSummary(alertData.summary);
-        setHistory(prev => {
-          const updated = [...prev, data].slice(-30); // keep last 30 points
-          return updated;
-        });
-      } catch (e) {
-        setConnected(false);
-        setWakingUp(true);
-        setTimeout(fetchMetrics, 5000);
-      }
-    };
+  let stopped = false;
 
-    fetchMetrics();
-    const interval = setInterval(fetchMetrics, 2000);
+  const fetchMetrics = async () => {
+    if (stopped) return;
+    try {
+      const localMetrics = await collectSystemMetrics(API_URL);
 
-    // Keep Railway backend alive every 4 minutes
-    const keepAlive = setInterval(async () => {
-      try {
-        await fetch(`${API_URL}/`, { method: "GET", cache: "no-store" });
-      } catch {}
-    }, 4 * 60 * 1000);
+      const res = await fetch(`${API_URL}/api/metrics/live`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(localMetrics),
+      });
 
-    return () => {
-      clearInterval(interval);
-      clearInterval(keepAlive);
-    };
-  }, []);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const data = await res.json();
+      setLatest(data);
+      setConnected(true);
+      setWakingUp(false);
+
+      const alertRes = await fetch(`${API_URL}/api/alerts/`);
+      const alertData = await alertRes.json();
+      setAlerts(alertData.alerts);
+      setAlertSummary(alertData.summary);
+
+      setHistory(prev => [...prev, data].slice(-30));
+
+    } catch (e) {
+      if (stopped) return;
+      setConnected(false);
+      setWakingUp(true);
+      setTimeout(fetchMetrics, 5000);
+    }
+  };
+
+  fetchMetrics();
+  const interval = setInterval(fetchMetrics, 2000);
+
+  // Keep backend alive every 4 minutes
+  const keepAlive = setInterval(async () => {
+    try {
+      await fetch(`${API_URL}/`, { method: "GET", cache: "no-store" });
+    } catch {}
+  }, 4 * 60 * 1000);
+
+  return () => {
+    stopped = true;
+    clearInterval(interval);
+    clearInterval(keepAlive);
+  };
+}, []);
 
   const acknowledgeAlert = async (id) => {
     await fetch(`${API_URL}/api/alerts/${id}/acknowledge`, { method: "POST" });
